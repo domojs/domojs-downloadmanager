@@ -3,12 +3,24 @@ global.Queue=function(processor, a2)
 {
     var processing=false;
     var queue=this.pending=a2 || [];
-    console.log(processor);
+    console.log(queue);
+    var self=this;
     this.enqueue=function(message){
         console.log(message);
         queue.push(message);
+        if(!processing)
+            self.save();
         processQueue();
     };
+    
+    this.save=function()
+    {
+        $('fs').writeFile('./modules/download-manager/queue.json', JSON.stringify(queue), function(err){
+            if(err)
+                console.log(err);
+        });
+        
+    }
     
     var processQueue=function(){
         if(processing)
@@ -17,8 +29,11 @@ global.Queue=function(processor, a2)
         var message=queue.shift();
         if(!message)
             return processing=false;
-        processor(message, function(){ processing=false; processQueue(); });
+        processor(message, function(){ self.save(); processing=false; process.nextTick(processQueue); });
     };
+
+    if(queue.length>0)
+        processQueue();
 };
 
 var findByTagName=function(dom, tagName)
@@ -91,9 +106,9 @@ var download=function(message, callback){
 
 var queue=new Queue(download);
 
-$('fs').exists('./download-manager/queue.json', function(exists){
+$('fs').exists('./modules/download-manager/queue.json', function(exists){
     if(exists)
-        queue=new Queue(download, $('./download-manager/queue.json'));
+        queue=new Queue(download, $('./modules/download-manager/queue.json'));
 });
 
 module.exports={
