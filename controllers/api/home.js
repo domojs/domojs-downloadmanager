@@ -27,6 +27,7 @@ global.Queue=function(processor, a2)
             return;
         processing=true;
         var message=queue.shift();
+        self.current=message;
         if(!message)
             return processing=false;
         processor(message, function(){ self.save(); processing=false; process.nextTick(processQueue); });
@@ -90,7 +91,6 @@ var fastHtmlParse=function(res, message, callback)
 };
 
 var download=function(message, callback){
-    console.log(message);
     $.ajax(message.url).on('response', function(res){
         if(res.headers['content-type']=='text/html')
         {
@@ -98,7 +98,13 @@ var download=function(message, callback){
         }
         else
         {
+            message.total=res.headers['content-length'];
+            message.downloadedSize=0;
             res.pipe($('fs').createWriteStream(message.to));
+            res.on('data', function(buffer){
+                message.downloadedSize+=buffer.length;
+                message.progress=downloadedSize/total;
+            });          
             res.on('end', callback);
         }
     });
@@ -119,6 +125,6 @@ module.exports={
             callback(200);
         }
         else
-            callback(queue.pending);
+            callback(queue);
     }
 };
