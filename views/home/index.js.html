@@ -1,0 +1,26 @@
+@!(model)
+@{
+    
+function emptyUrlCredentials(url){
+    url=$('url').parse(url);
+    url.auth=null;
+    return $('url').format(url);
+}
+
+}
+@if(model.current)
+{
+    <h3>@emptyUrlCredentials(model.current.url)</h3>
+    <div class="progress">
+        <div class="progress-bar" role="progressbar" ariavaluenow="@(model.current.progress*100)" ariavalmin="0" ariavalmax="100" style="width:@(model.current.progress*100)%;">
+            @(Math.round(model.current.progress*100))%
+        </div>
+    </div>
+}
+@if(model.pending)
+{
+    @for(var i in model.pending)
+    {
+        <h3>@(emptyUrlCredentials(model.pending[i].url))</h3>
+    }
+}
