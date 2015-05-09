@@ -1,42 +1,3 @@
-
-global.Queue=function(processor, a2)
-{
-    var processing=false;
-    var queue=this.pending=a2 || [];
-    console.log(queue);
-    var self=this;
-    this.enqueue=function(message){
-        console.log(message);
-        queue.push(message);
-        if(!processing)
-            self.save();
-        processQueue();
-    };
-    
-    this.save=function()
-    {
-        $('fs').writeFile('./modules/download-manager/queue.json', JSON.stringify(queue), function(err){
-            if(err)
-                console.log(err);
-        });
-        
-    }
-    
-    var processQueue=function(){
-        if(processing)
-            return;
-        processing=true;
-        var message=queue.shift();
-        self.current=message;
-        if(!message)
-            return processing=false;
-        processor(message, function(){ self.save(); processing=false; process.nextTick(processQueue); });
-    };
-
-    if(queue.length>0)
-        processQueue();
-};
-
 var findByTagName=function(dom, tagName)
 {
     var result=[];
@@ -91,6 +52,8 @@ var fastHtmlParse=function(res, message, callback)
 };
 
 var download=function(message, callback){
+    if(!message || !message.url)
+        return callback();
     $.ajax(message.url).on('response', function(res){
         if(res.headers['content-type']=='text/html')
         {
@@ -100,22 +63,32 @@ var download=function(message, callback){
         {
             message.total=res.headers['content-length'];
             message.downloadedSize=0;
-            res.pipe($('fs').createWriteStream(message.to));
+            var file=$('fs').createWriteStream(message.to);
+            file.on('error', function(err){
+                console.log(err);
+                callback();
+            });
+            message.lastPercent=0;
+            res.pipe(file);
             res.on('data', function(buffer){
                 message.downloadedSize+=buffer.length;
-                message.progress=downloadedSize/total;
-            });          
-            res.on('end', callback);
+                message.progress=message.downloadedSize/message.total;
+                if(message.lastPercent<Math.floor(message.progress*1000))
+                {
+                    message.lastPercent=message.progress*1000;
+                    $.emit('download.status', { progress:message.progress, downloadedSize:message.downloadedSize, total:message.total});
+                }
+            });
+            res.on('end', function(){
+                $.emit('message', 'Download Completed');
+                
+                callback();
+            });
         }
     });
 };
 
-var queue=new Queue(download);
-
-$('fs').exists('./modules/download-manager/queue.json', function(exists){
-    if(exists)
-        queue=new Queue(download, $('./modules/download-manager/queue.json'));
-});
+var queue=new Queue(download, './modules/download-manager/queue.json');
 
 module.exports={
     get:function(url, to, callback){
