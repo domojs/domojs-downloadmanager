@@ -7,6 +7,7 @@
                     <span class="progress-text" style="display:inline-block; width:185px; text-align:center"></span><span class="caret"></span></a>\
                     <ul class="dropdown-menu" role="menu">\
                         <li class="downloaded-size"></li>\
+                        <li class="name"></li>\
                     </ul>\
                     </li>');
     $module.hide();
@@ -45,6 +46,7 @@
                 clearTimeout(timeout);
             
             $('.downloaded-size', $module).text(humanReadable(status.downloadedSize)+' / '+humanReadable(status.total));
+            $('.name', $module).text(status.name);
             var progressPercent=Math.round(status.progress*10000)/100;
             $('.progress-text', $module).text(progressPercent+' %');
             $('.progress-bar', $module).width(progressPercent-5+'%');
