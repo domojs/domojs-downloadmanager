@@ -31,6 +31,8 @@ var fastHtmlParse=function(res, message, callback)
             var folderName=$('path').basename(message.url);
             
             var to=message.to;
+            if(!to)
+                callback();
             console.log(to);
             $('fs').exists(to, function(exists){
                 if(!exists)
@@ -113,7 +115,7 @@ var download=function(message, callback){
                 }
             });
             res.on('end', function(){
-                $.emit('message', 'Download Completed');
+                $.emit('message', {title:'Download Completed', text:fileName+' download complete'});
                 if(!callbackCalled)
                     callback();
             });

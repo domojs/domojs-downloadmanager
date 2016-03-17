@@ -1,5 +1,5 @@
 (function(){
-    var $module=$('<li class="dropdown"><a href class="dropdown-toggle hidden-xs" style="padding-top:15px; padding-bottom:0;height:54px;display:block" data-toggle="dropdown" role="button" aria-expanded="false">\
+    var $module=$('<li class="dropdown download module"><a href class="dropdown-toggle hidden-xs" style="padding-top:15px; padding-bottom:0;height:54px;display:block" data-toggle="dropdown" role="button" aria-expanded="false">\
                     <div style="height:5px;width:200px;margin-bottom:5px;" class="progress">\
                         <div class="progress-bar text-art-tertiary" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" style="width: 0;">\
                         </div>\
