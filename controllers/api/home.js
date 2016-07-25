@@ -19,6 +19,21 @@ var findByTagName=function(dom, tagName)
     return result;
 };
 
+function mkdirp(path, callback)
+{
+    $('fs').exists(path, function(exists){
+        if(!exists)
+            mkdirp($('path').dirname(path), function(err){
+                if(err)
+                    callback(err);
+                else
+                    $('fs').mkdir(path, callback)
+            });
+        else
+            callback();
+    })
+}
+
 var fastHtmlParse=function(res, message, callback)
 {
     var doc='';
@@ -34,32 +49,12 @@ var fastHtmlParse=function(res, message, callback)
             if(!to)
                 callback();
             console.log(to);
-            $('fs').exists(to, function(exists){
-                if(!exists)
-                    $('fs').mkdir(to, function(err){
-                        if(err)
-                        {
-                            console.log(err);
-                            callback();
-                        }
-                        var links=findByTagName(dom, 'a');
-                        $.each(links, function(index, item){
-                            if(!item.attribs.href.startsWith('../'))
-                                queue.enqueue({url:$('url').resolve(message.url, item.attribs.href), to:$('path').join(to, decodeURIComponent($('path').basename(item.attribs.href)))});
-                        });
-                        callback();
-    
-                    });
-                else
-                {
-                    var links=findByTagName(dom, 'a');
-                    $.each(links, function(index, item){
-                        if(!item.attribs.href.startsWith('../'))
-                            queue.enqueue({url:$('url').resolve(message.url, item.attribs.href), to:$('path').join(to, decodeURIComponent($('path').basename(item.attribs.href)))});
-                    });
-                    callback();
-                }
-            })
+            var links=findByTagName(dom, 'a');
+            $.each(links, function(index, item){
+                if(!item.attribs.href.startsWith('../'))
+                    queue.enqueue({url:$('url').resolve(message.url, item.attribs.href), to:$('path').join(to, decodeURIComponent($('path').basename(item.attribs.href)))});
+            });
+            callback();
         }
     });
     var parser = new htmlParser.Parser(handler);
@@ -93,37 +88,49 @@ var download=function(message, callback){
             message.downloadedSize=0;
             var callbackCalled=false;
             console.log('downloading to '+message.to);
-            var file=$('fs').createWriteStream(message.to, {flags:'w', mode:'0666'});
-            file.on('error', function(err){
-                console.log(err);
-                if(!callbackCalled)
+            mkdirp($('path').dirname(message.to), function(error){
+                if(error)
                 {
-                    callbackCalled=true;
-                    callback();
+                    console.log(error);
+                    if(!callbackCalled)
+                    {
+                        callbackCalled=true;
+                        callback();
+                    }
+                    return;
                 }
-            });
-            message.lastPercent=0;
-            res.pipe(file);
-            var fileName=$('path').basename(message.to);
-            res.on('data', function(buffer){
-                message.downloadedSize+=buffer.length;
-                message.progress=message.downloadedSize/message.total;
-                if(message.lastPercent<Math.floor(message.progress*1000))
-                {
-                    message.lastPercent=message.progress*1000;
-                    $.emit('download.status', { name:fileName, progress:message.progress, downloadedSize:message.downloadedSize, total:message.total});
-                }
-            });
-            res.on('end', function(){
-                $.emit('message', {title:'Download Completed', text:fileName+' download complete'});
-                if(!callbackCalled)
-                    callback();
-            });
+                var file=$('fs').createWriteStream(message.to, {flags:'w', mode:'0666'});
+                file.on('error', function(err){
+                    console.log(err);
+                    if(!callbackCalled)
+                    {
+                        callbackCalled=true;
+                        callback();
+                    }
+                });
+                message.lastPercent=0;
+                res.pipe(file);
+                var fileName=$('path').basename(message.to);
+                res.on('data', function(buffer){
+                    message.downloadedSize+=buffer.length;
+                    message.progress=message.downloadedSize/message.total;
+                    if(message.lastPercent<Math.floor(message.progress*1000))
+                    {
+                        message.lastPercent=message.progress*1000;
+                        $.emit('download.status', { name:fileName, progress:message.progress, downloadedSize:message.downloadedSize, total:message.total});
+                    }
+                });
+                res.on('end', function(){
+                    $.emit('message', {title:'Download Completed', text:fileName+' download complete'});
+                    if(!callbackCalled)
+                        callback();
+                });
+            })
         }
     });
 };
 
-var queue=new Queue(download, './modules/download-manager/queue.json');
+var queue=$.queue(download, './modules/download-manager/queue.json');
 
 module.exports={
     get:function(url, to, callback){
